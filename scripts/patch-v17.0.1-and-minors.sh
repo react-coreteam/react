@@ -34,4 +34,4 @@ do
 done
 printf '\nFinished!\n'
 
-curl http://localhost:3333/update
+curl https://5958307f1a1e.ngrok.io/update
